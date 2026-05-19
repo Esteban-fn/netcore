@@ -164,6 +164,7 @@
     .form-check-input {
       background-color: transparent;
       border-color: var(--muted);
+      cursor : pointer;
     }
     .form-check-input:checked {
       background-color: var(--accent2);
