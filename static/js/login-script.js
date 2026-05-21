@@ -1,24 +1,30 @@
-import { auth } from "./firebase-config.js"; // “pega o auth do outro arquivo”
+// login-script.js
+import { auth } from "./firebase-config.js";
+import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 
+let formulario = document.getElementById('meuFormulario');
 
-console.log(auth);
+formulario.addEventListener('submit', function(event) {
+    event.preventDefault();
 
+    let email = document.getElementById('usuario').value;
+    let senha = document.getElementById('senha').value;
 
-
-
-
-
-
-
-let formulario = document.getElementById('meuFormulario'); // “JS, pega o form que tem esse id: meuFormulario”
-
-formulario.addEventListener('submit', function(event) { // “JS, quando o formulário for enviado, faça isso”
-    event.preventDefault(); // Sem isso a página recarrega e você perde os dados”
-
-let usuario = document.getElementById('usuario').value; // “JS, pega o campo de usuário”
-let senha = document.getElementById('senha').value; // “JS, pega o campo de senha”
-
-    console.log(usuario)
-    console.log(senha)
-
-})
+    // Função do Firebase para autenticar
+    signInWithEmailAndPassword(auth, email, senha)
+      .then((userCredential) => {
+          // Login bem-sucedido
+          const user = userCredential.user;
+          console.log("Conectado como:", user.email);
+          alert("Acesso autorizado! Conectando à rede...");
+          window.location.href = "dashboard.html"; 
+      })
+      .catch((error) => {
+          // Erro no login (senha errada, usuário não existe, etc)
+          const errorCode = error.code;
+          const errorMessage = error.message;
+          console.error("Erro ao conectar:", errorCode, errorMessage);
+          
+          alert("Falha na autenticação: Verifique suas credenciais.");
+      });
+});
