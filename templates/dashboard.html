@@ -1,15 +1,695 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NETCORE — Topology Platform</title>
+<style>
+  :root {
+    --bg: #060a12;
+    --bg-card: #0a1120;
+    --bg-card-hover: #0d1626;
+    --border: #1b2f47;
+    --border-bright: #2a4a6e;
+    --cyan: #3fb6ff;
+    --cyan-dim: #2d7aa8;
+    --cyan-glow: rgba(63, 182, 255, 0.35);
+    --text: #d7e3f0;
+    --text-dim: #5e7185;
+    --text-faint: #3a4a5c;
+    --green: #34d399;
+    --mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ---------- background network effect ---------- */
+  #net-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    opacity: 0.55;
+  }
+
+  .bg-fade {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, transparent 0%, var(--bg) 75%);
+    pointer-events: none;
+  }
+
+  /* ---------- layout shell ---------- */
+  .shell {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 56px 32px 80px;
+  }
+
+  /* ---------- header ---------- */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 40px;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+  }
+
+  .brand-text h1 {
+    font-size: 19px;
+    letter-spacing: 2px;
+    font-weight: 700;
+  }
+  .brand-text h1 span { color: var(--cyan); }
+
+  .brand-text .sub {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  .header-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+
+  .dot-live {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ---------- stat strip ---------- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 36px;
+  }
+
+  .stat {
+    background: var(--bg-card);
+    padding: 18px 22px;
+  }
+
+  .stat .num {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--cyan);
+    line-height: 1;
+  }
+
+  .stat .label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    text-transform: uppercase;
+  }
+
+  /* ---------- tabs ---------- */
+  .tabs-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+
+  .tab-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 12px 20px;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .tab-btn:hover { color: var(--text); }
+
+  .tab-btn .count {
+    font-size: 10px;
+    color: var(--text-faint);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 1px 6px;
+    border-radius: 8px;
+  }
+
+  .tab-btn.active { color: var(--cyan); }
+  .tab-btn.active .count { color: var(--cyan); border-color: var(--cyan-dim); }
+
+  .tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan-glow);
+  }
+
+  /* ---------- toolbar ---------- */
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 24px 0 18px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .search-box {
+    flex: 1;
+    max-width: 360px;
+    position: relative;
+  }
+
+  .search-box input {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 10px 14px 10px 32px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-box input:focus { border-color: var(--cyan-dim); }
+  .search-box input::placeholder { color: var(--text-faint); }
+
+  .search-box .icon {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 13px;
+    height: 13px;
+    color: var(--text-faint);
+  }
+
+  .new-btn {
+    background: var(--cyan);
+    color: #04111d;
+    border: none;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 11px 18px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+  }
+  .new-btn:hover { opacity: 0.85; }
+
+  /* ---------- list ---------- */
+  .list-head {
+    display: grid;
+    grid-template-columns: 64px 1fr 130px 150px;
+    gap: 16px;
+    padding: 0 18px 10px;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .item {
+    display: grid;
+    grid-template-columns: 64px 1fr 130px 150px;
+    gap: 16px;
+    align-items: center;
+    padding: 14px 18px;
+    border: 1px solid transparent;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    position: relative;
+  }
+
+  .item:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-bright);
+  }
+
+  .item:hover .corner { opacity: 1; }
+
+  .corner {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-color: var(--cyan);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .corner.tl { top: -1px; left: -1px; border-top: 1px solid; border-left: 1px solid; }
+  .corner.br { bottom: -1px; right: -1px; border-bottom: 1px solid; border-right: 1px solid; }
+
+  .thumb {
+    width: 64px;
+    height: 44px;
+    border: 1px solid var(--border);
+    background: #0d1722 center/cover no-repeat;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .item-main {
+    min-width: 0;
+  }
+
+  .item-title-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 4px;
+  }
+
+  .node-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--cyan-dim);
+    flex-shrink: 0;
+    box-shadow: 0 0 0 2px rgba(63,182,255,0.12);
+  }
+
+  .item.is-new .node-dot {
+    background: var(--green);
+    box-shadow: 0 0 0 2px rgba(52,211,153,0.18);
+    animation: pulse 2s infinite;
+  }
+
+  .item-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .item-desc {
+    font-size: 11px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-left: 15px;
+  }
+
+  .item-type {
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--cyan-dim);
+    border: 1px solid var(--border-bright);
+    padding: 4px 9px;
+    width: fit-content;
+    white-space: nowrap;
+  }
+
+  .item-date {
+    text-align: right;
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+  .item-date .time { color: var(--text-faint); font-size: 10px; }
+
+  /* ---------- empty state ---------- */
+  .empty {
+    display: none;
+    text-align: center;
+    padding: 70px 20px;
+    color: var(--text-faint);
+  }
+  .empty.show { display: block; }
+  .empty .icon { font-size: 28px; margin-bottom: 14px; color: var(--text-faint); }
+  .empty .msg { font-size: 12px; letter-spacing: 1px; }
+
+  /* ---------- footer ---------- */
+  .footer-bar {
+    margin-top: 40px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--text-faint);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  @media (max-width: 700px) {
+    .list-head { display: none; }
+    .item { grid-template-columns: 50px 1fr; row-gap: 6px; }
+    .item-type, .item-date { display: none; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
 </head>
 <body>
 
-    
-<h1>Dashboard</h1>
+<canvas id="net-bg"></canvas>
+<div class="bg-fade"></div>
 
+<div class="shell">
+
+  <!-- header -->
+  <div class="header">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="6" r="3" fill="#3fb6ff"/>
+        <circle cx="8" cy="30" r="3" fill="#3fb6ff"/>
+        <circle cx="32" cy="30" r="3" fill="#3fb6ff"/>
+        <line x1="20" y1="9" x2="9" y2="27" stroke="#3fb6ff" stroke-width="1.4"/>
+        <line x1="20" y1="9" x2="31" y2="27" stroke="#3fb6ff" stroke-width="1.4"/>
+        <line x1="11" y1="30" x2="29" y2="30" stroke="#3fb6ff" stroke-width="1.4"/>
+      </svg>
+      <div class="brand-text">
+        <h1>NET<span>CORE</span></h1>
+        <div class="sub">NETWORK TOPOLOGY PLATFORM</div>
+      </div>
+    </div>
+    <div class="header-status">
+      <span class="dot-live"></span>
+      <span id="clock">--:--:--</span>
+      <span style="color:var(--text-faint)">·</span>
+      <span>teste@teste.com</span>
+    </div>
+  </div>
+
+  <!-- stats -->
+  <div class="stats">
+    <div class="stat">
+      <div class="num" id="stat-total">0</div>
+      <div class="label">Total de itens</div>
+    </div>
+    <div class="stat">
+      <div class="num" id="stat-redes">0</div>
+      <div class="label">Redes</div>
+    </div>
+    <div class="stat">
+      <div class="num" id="stat-prog">0</div>
+      <div class="label">Programação</div>
+    </div>
+    <div class="stat">
+      <div class="num" id="stat-outros">0</div>
+      <div class="label">Outros</div>
+    </div>
+  </div>
+
+  <!-- tabs -->
+  <div class="tabs-row" id="tabs">
+    <button class="tab-btn active" data-tab="todos">Todos <span class="count" id="count-todos">0</span></button>
+    <button class="tab-btn" data-tab="redes">Redes <span class="count" id="count-redes">0</span></button>
+    <button class="tab-btn" data-tab="programacao">Programação <span class="count" id="count-programacao">0</span></button>
+    <button class="tab-btn" data-tab="outros">Outros <span class="count" id="count-outros">0</span></button>
+  </div>
+
+  <!-- toolbar -->
+  <div class="toolbar">
+    <div class="search-box">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" id="search" placeholder="Buscar por título...">
+    </div>
+    <button class="new-btn">+ Novo registro</button>
+  </div>
+
+  <!-- list -->
+  <div class="list-head">
+    <span></span>
+    <span>Título</span>
+    <span>Categoria</span>
+    <span style="text-align:right">Registrado em</span>
+  </div>
+  <div class="list" id="list"></div>
+  <div class="empty" id="empty">
+    <div class="icon">∅</div>
+    <div class="msg">NENHUM REGISTRO ENCONTRADO</div>
+  </div>
+
+  <div class="footer-bar">
+    <span>NETCORE v1.0</span>
+    <span>SERVIDOR ATIVO · 192.168.0.1 · TLS 1.3</span>
+  </div>
+
+</div>
+
+<script>
+  /* =========================================================
+     DADOS — edite/adicione seus itens aqui.
+     type: "redes" | "programacao" | "outros"
+     image: caminho/URL da imagem (print da topologia/projeto)
+     createdAt: data ISO de quando foi feito
+  ========================================================= */
+  const ITEMS = [
+    {
+      title: "Lab OSPF Multi-área — 3 ASes",
+      desc: "Topologia GNS3 com redistribuição BGP↔OSPF",
+      type: "redes",
+      image: "",
+      createdAt: "2026-06-25T14:32:00"
+    },
+    {
+      title: "Rede Corporativa — Filial SP",
+      desc: "VLANs segmentadas + firewall perimetral",
+      type: "redes",
+      image: "",
+      createdAt: "2026-06-20T09:10:00"
+    },
+    {
+      title: "API REST — Pipeline de autenticação",
+      desc: "Fluxo JWT + refresh token, draw.io",
+      type: "programacao",
+      image: "",
+      createdAt: "2026-06-22T18:45:00"
+    },
+    {
+      title: "Arquitetura de microsserviços",
+      desc: "Gateway, fila e workers — diagrama C4",
+      type: "programacao",
+      image: "",
+      createdAt: "2026-06-10T11:00:00"
+    },
+    {
+      title: "Mapa mental — Estudo CCNA",
+      desc: "Organização de tópicos para certificação",
+      type: "outros",
+      image: "",
+      createdAt: "2026-05-30T20:15:00"
+    }
+  ];
+
+  const TYPE_LABEL = { redes: "Redes", programacao: "Programação", outros: "Outros" };
+
+  let activeTab = "todos";
+
+  function fmtDate(iso) {
+    const d = new Date(iso);
+    const date = d.toLocaleDateString('pt-BR');
+    const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    return { date, time };
+  }
+
+  function isRecent(iso) {
+    const diff = Date.now() - new Date(iso).getTime();
+    return diff < 1000 * 60 * 60 * 24 * 3; // 3 dias
+  }
+
+  function renderStats() {
+    document.getElementById('stat-total').textContent = ITEMS.length;
+    document.getElementById('stat-redes').textContent = ITEMS.filter(i => i.type === 'redes').length;
+    document.getElementById('stat-prog').textContent = ITEMS.filter(i => i.type === 'programacao').length;
+    document.getElementById('stat-outros').textContent = ITEMS.filter(i => i.type === 'outros').length;
+
+    document.getElementById('count-todos').textContent = ITEMS.length;
+    document.getElementById('count-redes').textContent = ITEMS.filter(i => i.type === 'redes').length;
+    document.getElementById('count-programacao').textContent = ITEMS.filter(i => i.type === 'programacao').length;
+    document.getElementById('count-outros').textContent = ITEMS.filter(i => i.type === 'outros').length;
+  }
+
+  function renderList() {
+    const search = document.getElementById('search').value.trim().toLowerCase();
+    const list = document.getElementById('list');
+    const empty = document.getElementById('empty');
+
+    let filtered = ITEMS.filter(i => activeTab === 'todos' || i.type === activeTab);
+    if (search) filtered = filtered.filter(i => i.title.toLowerCase().includes(search));
+    filtered = filtered.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    list.innerHTML = '';
+
+    if (filtered.length === 0) {
+      empty.classList.add('show');
+      return;
+    }
+    empty.classList.remove('show');
+
+    filtered.forEach(item => {
+      const { date, time } = fmtDate(item.createdAt);
+      const el = document.createElement('div');
+      el.className = 'item' + (isRecent(item.createdAt) ? ' is-new' : '');
+      el.innerHTML = `
+        <div class="corner tl"></div>
+        <div class="corner br"></div>
+        <div class="thumb">${item.image ? `<img src="${item.image}" alt="">` : ''}</div>
+        <div class="item-main">
+          <div class="item-title-row">
+            <span class="node-dot"></span>
+            <span class="item-title">${item.title}</span>
+          </div>
+          <div class="item-desc">${item.desc || ''}</div>
+        </div>
+        <div class="item-type">${TYPE_LABEL[item.type]}</div>
+        <div class="item-date">${date}<br><span class="time">${time}</span></div>
+      `;
+      list.appendChild(el);
+    });
+  }
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeTab = btn.dataset.tab;
+      renderList();
+    });
+  });
+
+  document.getElementById('search').addEventListener('input', renderList);
+
+  function tickClock() {
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString('pt-BR');
+  }
+  setInterval(tickClock, 1000);
+  tickClock();
+
+  renderStats();
+  renderList();
+
+  /* ---------- background network canvas ---------- */
+  const canvas = document.getElementById('net-bg');
+  const ctx = canvas.getContext('2d');
+  let particles = [];
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const count = Math.floor((canvas.width * canvas.height) / 22000);
+    particles = Array.from({ length: count }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      vx: (Math.random() - 0.5) * 0.15,
+      vy: (Math.random() - 0.5) * 0.15,
+      r: Math.random() * 1.5 + 0.6
+    }));
+  }
+
+  function drawNet() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#3fb6ff';
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+      if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+    });
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const a = particles[i], b = particles[j];
+        const dx = a.x - b.x, dy = a.y - b.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 140) {
+          ctx.strokeStyle = `rgba(63,182,255,${0.16 * (1 - dist / 140)})`;
+          ctx.lineWidth = 0.6;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+    }
+    particles.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    requestAnimationFrame(drawNet);
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+  drawNet();
+</script>
 
 </body>
 </html>
